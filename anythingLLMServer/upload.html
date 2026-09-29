@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>AnythingLLM 文档上传</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
+    background: linear-gradient(135deg, #eef2ff, #f8fafc);
+    margin: 0; min-height: 100vh;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .card {
+    background: #fff; width: 560px; padding: 36px 40px;
+    border-radius: 16px; box-shadow: 0 12px 40px rgba(30, 41, 59, .12);
+  }
+  h2 { margin: 0 0 6px; font-size: 22px; color: #1e293b; }
+  .sub { margin: 0 0 24px; font-size: 13px; color: #94a3b8; }
+  .drop {
+    border: 2px dashed #cbd5e1; border-radius: 12px;
+    padding: 32px 16px; text-align: center; color: #64748b;
+    cursor: pointer; transition: .2s; font-size: 14px;
+  }
+  .drop:hover, .drop.over { border-color: #6366f1; background: #eef2ff; color: #6366f1; }
+  .drop .icon { font-size: 32px; display: block; margin-bottom: 8px; }
+  .key-row { margin-bottom: 16px; }
+  .key-row label { display: block; font-size: 12px; color: #64748b; margin-bottom: 6px; }
+  .key-row input {
+    width: 100%; padding: 10px 12px; font-size: 13px;
+    border: 1px solid #cbd5e1; border-radius: 8px; outline: none;
+    font-family: Consolas, monospace; transition: .2s;
+  }
+  .key-row input:focus { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99, 102, 241, .15); }
+  .key-hint { font-size: 11px; color: #94a3b8; margin-top: 5px; }
+  .remember { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #475569; cursor: pointer; user-select: none; margin-bottom: 4px; line-height: 1.5; }
+  .gate-msg { display: none; margin-top: 14px; padding: 10px 12px; border-radius: 8px; font-size: 12px; background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
+  .gate-msg.on { display: block; }
+  .main-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+  .main-head a { font-size: 12px; color: #94a3b8; cursor: pointer; text-decoration: none; white-space: nowrap; margin-top: 8px; }
+  .main-head a:hover { color: #b91c1c; }
+  .ws-row { margin-bottom: 16px; }
+  .ws-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+  .ws-head label { font-size: 12px; color: #64748b; }
+  .ws-head a { font-size: 11px; color: #6366f1; cursor: pointer; text-decoration: none; }
+  .ws-head a:hover { text-decoration: underline; }
+  .ws-row select {
+    width: 100%; padding: 10px 12px; font-size: 13px;
+    border: 1px solid #cbd5e1; border-radius: 8px; outline: none;
+    background: #fff; color: #1e293b; appearance: auto;
+  }
+  .ws-row select:focus { border-color: #6366f1; box-shadow: 0 0 0 3px rgba(99, 102, 241, .15); }
+  .ws-row select:disabled { background: #f1f5f9; color: #94a3b8; cursor: not-allowed; }
+  .file-list { list-style: none; margin: 12px 0 0; padding: 0; max-height: 160px; overflow-y: auto; }
+  .file-list li {
+    display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 2px 8px;
+    padding: 7px 10px; border: 1px solid #e2e8f0; border-radius: 8px;
+    margin-bottom: 6px; font-size: 12px; color: #475569;
+  }
+  .file-list .fname { grid-column: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; color: #1e293b; }
+  .file-list .rm { grid-column: 2; cursor: pointer; color: #94a3b8; padding: 0 2px; }
+  .file-list .rm:hover { color: #b91c1c; }
+  .file-list .meta { grid-column: 1 / -1; font-size: 11px; color: #94a3b8; margin-top: 2px; word-break: break-all; line-height: 1.5; }
+  .file-summary { font-size: 11px; color: #94a3b8; margin-top: 8px; }
+  .open-ws { display: none; margin-top: 14px; padding: 11px 14px; border: 1px solid #c7d2fe; background: #eef2ff; color: #4f46e5; border-radius: 10px; font-size: 13px; font-weight: 600; text-align: center; text-decoration: none; transition: .2s; }
+  .open-ws.on { display: block; }
+  .open-ws:hover { background: #e0e7ff; }
+  .modal-mask { position: fixed; inset: 0; background: rgba(15, 23, 42, .45); display: flex; align-items: center; justify-content: center; z-index: 50; padding: 20px; }
+  .modal-mask[hidden] { display: none; }
+  .modal { background: #fff; width: 480px; max-width: 100%; max-height: 82vh; overflow-y: auto; border-radius: 14px; padding: 24px 26px; box-shadow: 0 20px 60px rgba(15, 23, 42, .3); }
+  .modal h4 { margin: 0 0 6px; font-size: 17px; color: #1e293b; }
+  .modal .modal-sub { margin: 0 0 14px; font-size: 12px; color: #94a3b8; line-height: 1.6; }
+  .modal ul { list-style: none; margin: 0; padding: 0; }
+  .modal li { border: 1px solid #e2e8f0; border-radius: 8px; padding: 9px 12px; margin-bottom: 8px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .modal li .dname { flex: 0 0 100%; font-size: 12px; font-weight: 600; color: #1e293b; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .modal li label { display: flex; align-items: center; gap: 4px; font-size: 12px; color: #475569; cursor: pointer; }
+  .modal .modal-btns { display: flex; gap: 10px; margin-top: 16px; }
+  .modal button { margin-top: 0; flex: 1; padding: 11px; font-size: 14px; letter-spacing: 0; }
+  .modal button.ghost { background: #e2e8f0; color: #475569; }
+  .modal button.ghost:hover:not(:disabled) { filter: none; background: #cbd5e1; transform: none; }
+  button {
+    width: 100%; margin-top: 20px; padding: 13px;
+    border: 0; border-radius: 10px; cursor: pointer;
+    background: linear-gradient(135deg, #6366f1, #4f46e5);
+    color: #fff; font-size: 15px; font-weight: 600; letter-spacing: 1px;
+    transition: .2s;
+  }
+  button:hover:not(:disabled) { filter: brightness(1.1); transform: translateY(-1px); }
+  button:disabled { background: #cbd5e1; cursor: not-allowed; }
+  .progress-wrap { display: none; margin-top: 20px; }
+  .progress-wrap.on { display: block; }
+  .bar-bg { height: 10px; background: #e2e8f0; border-radius: 5px; overflow: hidden; }
+  .bar { height: 100%; width: 0; background: linear-gradient(90deg, #6366f1, #4f46e5); transition: width .2s; }
+  .bar.indet { width: 40%; animation: slide 1.2s ease-in-out infinite; }
+  @keyframes slide { 0% { margin-left: -40%; } 100% { margin-left: 100%; } }
+  .progress-text { font-size: 12px; color: #64748b; margin-top: 6px; }
+  #result {
+    display: none; margin-top: 20px; padding: 14px 16px;
+    border-radius: 10px; font-size: 13px; line-height: 1.7;
+    white-space: pre-wrap; word-break: break-all;
+  }
+  #result.ok { display: block; background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; }
+  #result.err { display: block; background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
+  #result.info { display: block; background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
+  .history { margin-top: 28px; }
+  .history h3 { font-size: 14px; color: #475569; margin: 0 0 10px; display: flex; justify-content: space-between; }
+  .history h3 a { font-weight: normal; font-size: 12px; color: #94a3b8; cursor: pointer; text-decoration: none; }
+  .history h3 a:hover { color: #b91c1c; }
+  .history ul { list-style: none; margin: 0; padding: 0; max-height: 240px; overflow-y: auto; }
+  .history li {
+    display: flex; align-items: center; gap: 8px;
+    padding: 9px 12px; border: 1px solid #e2e8f0; border-radius: 8px;
+    margin-bottom: 6px; font-size: 12px; color: #475569;
+  }
+  .history li .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .history li .dot.ok { background: #10b981; }
+  .history li .dot.err { background: #ef4444; }
+  .history li .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; color: #1e293b; }
+  .history li .time { color: #94a3b8; flex-shrink: 0; }
+  .history h3 span { display: flex; gap: 12px; }
+  .log-sec { margin-top: 16px; border-top: 1px solid #e2e8f0; padding-top: 14px; }
+  .log-sec ul { max-height: 260px; }
+  .log-sec li { border: 1px solid #fecaca; background: #fff7f7; color: #7f1d1d; display: block; padding: 8px 10px; }
+  .log-sec li .l1 { display: flex; align-items: center; gap: 8px; }
+  .log-sec li .cat { background: #fee2e2; color: #b91c1c; border-radius: 4px; padding: 1px 6px; font-weight: 600; flex-shrink: 0; font-size: 11px; }
+  .log-sec li .fname { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; color: #1e293b; }
+  .log-sec li .time { color: #94a3b8; flex-shrink: 0; font-size: 11px; }
+  .log-sec li .l2 { margin-top: 4px; color: #b91c1c; word-break: break-all; line-height: 1.6; font-size: 11px; }
+  .log-sec li.empty { border-style: dashed; background: none; color: #94a3b8; text-align: center; display: block; }
+</style>
+</head>
+<body>
+<div class="card" id="gate">
+  <h2>API Key 验证</h2>
+  <p class="sub">粘贴 AnythingLLM API Key 进入上传工具</p>
+
+  <div class="key-row">
+    <label for="keyInput">API Key</label>
+    <input type="password" id="keyInput" placeholder="粘贴 AnythingLLM API Key" autocomplete="off">
+    <div class="key-hint">在 AnythingLLM 设置 → API Key 中获取。</div>
+  </div>
+
+  <label class="remember">
+    <input type="checkbox" id="rememberChk">
+    记住我（保存在本机浏览器，下次自动进入；不勾选则关闭页面后需重新粘贴）
+  </label>
+
+  <button id="enterBtn">进入</button>
+  <div class="gate-msg" id="gateMsg"></div>
+</div>
+
+<div class="card" id="main" hidden>
+  <div class="main-head">
+    <div>
+      <h2>文档上传</h2>
+      <p class="sub">上传到 AnythingLLM 指定工作区 · 自动解析并向量化 · 支持多文件批量</p>
+    </div>
+    <a id="switchKey" title="清除当前 Key 并退出">切换 Key / 退出</a>
+  </div>
+
+  <div class="key-row">
+    <label for="apiInput">服务地址（API）</label>
+    <input type="text" id="apiInput" placeholder="http://localhost:3001/api" autocomplete="off" spellcheck="false">
+    <div class="key-hint">默认 http://localhost:3001/api；部署到别的机器或换地址时改这里即可，自动保存，无需改代码。</div>
+  </div>
+
+  <div class="ws-row">
+    <div class="ws-head">
+      <label for="wsSelect">目标工作区</label>
+      <a id="refreshWs">刷新列表</a>
+    </div>
+    <select id="wsSelect" disabled><option value="">请先填写 API Key</option></select>
+  </div>
+
+  <div class="drop" id="drop">
+    <span class="icon">📄</span>
+    <span id="fileText">点击选择文件（可多选），或将文件拖到此处</span>
+    <input type="file" id="file" multiple hidden>
+  </div>
+  <ul class="file-list" id="fileList"></ul>
+  <div class="file-summary" id="fileSummary"></div>
+
+  <button id="btn" disabled>上传文件</button>
+
+  <div class="progress-wrap" id="progressWrap">
+    <div class="bar-bg"><div class="bar" id="bar"></div></div>
+    <div class="progress-text" id="progressText"></div>
+  </div>
+  <div id="result"></div>
+  <a id="openWs" class="open-ws" target="_blank" rel="noopener"></a>
+
+  <div class="history">
+    <h3>上传记录 <a id="clearHistory">清空</a></h3>
+    <ul id="historyList"></ul>
+  </div>
+
+  <div class="history log-sec">
+    <h3>错误日志 <span><a id="clearLog">清空日志</a><a id="toggleLog">查看日志</a></span></h3>
+    <ul id="logList" hidden></ul>
+  </div>
+</div>
+
+<div class="modal-mask" id="dupModal" hidden>
+  <div class="modal">
+    <h4>发现重复文档</h4>
+    <p class="modal-sub">以下文件在目标工作区已存在同名文档。为防重复向量化浪费额度、污染知识库，请为每个文件选择处理方式：</p>
+    <ul id="dupList"></ul>
+    <div class="modal-btns">
+      <button id="dupGo">按所选继续上传</button>
+      <button id="dupCancel" class="ghost">取消</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// API 地址可配（配置面板）：默认 localhost，页面可改并持久化，别人部署/换机器不用动代码
+const URL_KEY = "anythingllm_api_url";
+const DEFAULT_API = "http://localhost:3001/api";
+function normalizeApi(v) {
+  let s = String(v || "").trim().replace(/\/+$/, "");
+  if (!s) s = DEFAULT_API;
+  if (!/\/api$/i.test(s)) s += "/api";   // 容错：只填域名/端口也自动补 /api
+  return s;
+}
+let API = normalizeApi(localStorage.getItem(URL_KEY) || DEFAULT_API);
+const appUrl = p => API.replace(/\/api$/i, "") + p;   // 前端页面地址（去掉 /api）
+const KEY_STORAGE = "anythingllm_api_key";
+
+const gate = document.getElementById("gate");
+const main = document.getElementById("main");
+const keyInput = document.getElementById("keyInput");
+const rememberChk = document.getElementById("rememberChk");
+const gateMsg = document.getElementById("gateMsg");
+
+// 当前生效的 Key：来自 localStorage（记住我）或仅本次会话内存
+let currentKey = localStorage.getItem(KEY_STORAGE) || "";
+rememberChk.checked = !!currentKey;
+
+function showGateMsg(text) {
+  gateMsg.textContent = text || "";
+  gateMsg.classList.toggle("on", !!text);
+}
+function enterMain() {
+  gate.hidden = true;
+  main.hidden = false;
+  loadWorkspaces();   // 进入后拉取工作区列表
+}
+function exitToGate() {   // 切换 Key / 退出：清空当前 Key，回到登录卡片
+  currentKey = "";
+  localStorage.removeItem(KEY_STORAGE);
+  keyInput.value = "";
+  rememberChk.checked = false;
+  showGateMsg("");
+  main.hidden = true;
+  gate.hidden = false;
+  keyInput.focus();
+}
+document.getElementById("enterBtn").onclick = () => {
+  const k = keyInput.value.trim();
+  if (!k) return showGateMsg("请先粘贴 API Key");
+  currentKey = k;
+  // 记住我 → 写入 localStorage（下次自动进入）；不勾选 → 仅本次内存有效，关闭即失效
+  if (rememberChk.checked) localStorage.setItem(KEY_STORAGE, k);
+  else localStorage.removeItem(KEY_STORAGE);
+  showGateMsg("");
+  enterMain();
+};
+keyInput.onkeydown = e => { if (e.key === "Enter") document.getElementById("enterBtn").click(); };
+document.getElementById("switchKey").onclick = exitToGate;
+
+const getKey = () => currentKey;
+const headers = () => ({ Authorization: `Bearer ${getKey()}` });
+const escapeHtml = s => String(s).replace(/[&<>"']/g, c =>
+  ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+// ---------- 用户友好错误分类（功能 5-A） ----------
+function friendlyError(kind, status, raw) {
+  if (kind === "network") return "连不上 AnythingLLM 服务，请确认服务已启动、地址正确";
+  if (kind === "auth") return "API Key 无效或已过期，请检查后重新粘贴";
+  if (kind === "format") return "该文件格式不受支持，请换成 txt / pdf / docx 等";
+  if (kind === "timeout") return "请求超时，请重试";
+  return raw || "未知错误";   // 其他错误：原样展示服务端返回信息
+}
+function classifyStatus(s) {
+  if (s === 401 || s === 403) return "auth";
+  if (s === 400 || s === 415) return "format";
+  return "server";
+}
+function httpError(kind, status, raw) {
+  const err = new Error(friendlyError(kind, status, raw));
+  err.kind = kind; err.status = status; err.raw = raw || "";
+  return err;
+}
+
+// ---------- 工作区下拉 ----------
+const WS_KEY = "anythingllm_workspace_slug";
+const wsSelect = document.getElementById("wsSelect");
+
+async function loadWorkspaces() {
+  if (!getKey()) {
+    wsSelect.innerHTML = `<option value="">请先填写 API Key</option>`;
+    wsSelect.disabled = true;
+    updateBtn();
+    return;
+  }
+  const saved = localStorage.getItem(WS_KEY);
+  wsSelect.disabled = true;
+  wsSelect.innerHTML = `<option value="">加载中…</option>`;
+  try {
+    let res;
+    try { res = await fetch(`${API}/v1/workspaces`, { headers: headers() }); }
+    catch { throw httpError("network", 0, "网络错误"); }
+    if (!res.ok) throw httpError(classifyStatus(res.status), res.status, `HTTP ${res.status}`);
+    const list = (await res.json()).workspaces || [];
+    if (!list.length) {
+      // 边界：无任何工作区 → 下拉置空提示、上传按钮禁用
+      wsSelect.innerHTML = `<option value="">请先在 AnythingLLM 创建工作区</option>`;
+      wsSelect.disabled = true;
+      updateBtn();
+      return;
+    }
+    // 名称填入下拉，默认选中第一个（浏览器默认选中首项；有记住的选择则恢复）
+    wsSelect.innerHTML = list.map(w => `<option value="${w.slug}">${escapeHtml(w.name)}</option>`).join("");
+    if (saved && list.some(w => w.slug === saved)) wsSelect.value = saved;
+    wsSelect.disabled = false;
+  } catch (e) {
+    wsSelect.innerHTML = `<option value="">加载失败：${escapeHtml(e.message)}</option>`;
+  }
+  updateBtn();
+}
+wsSelect.onchange = () => { localStorage.setItem(WS_KEY, wsSelect.value); updateBtn(); };
+document.getElementById("refreshWs").onclick = ev => { ev.stopPropagation(); loadWorkspaces(); };
+
+// 配置面板：API 地址输入 → 持久化 + 防抖重拉工作区
+const apiInput = document.getElementById("apiInput");
+apiInput.value = API;
+let apiTimer;
+apiInput.oninput = () => {
+  API = normalizeApi(apiInput.value);
+  localStorage.setItem(URL_KEY, API);
+  clearTimeout(apiTimer);
+  apiTimer = setTimeout(loadWorkspaces, 400);
+};
+apiInput.onblur = () => { apiInput.value = API; };   // 失焦后回显规范化结果（如自动补的 /api）
+
+// ---------- 文件多选 ----------
+const drop = document.getElementById("drop");
+const fileInput = document.getElementById("file");
+const btn = document.getElementById("btn");
+const result = document.getElementById("result");
+const historyList = document.getElementById("historyList");
+const fileListEl = document.getElementById("fileList");
+let files = [];
+
+drop.onclick = () => fileInput.click();
+fileInput.onchange = () => { setFiles(fileInput.files); fileInput.value = ""; };  // 清空以便重复选同一文件
+["dragover", "dragenter"].forEach(e => drop.addEventListener(e, ev => { ev.preventDefault(); drop.classList.add("over"); }));
+["dragleave", "drop"].forEach(e => drop.addEventListener(e, ev => { ev.preventDefault(); drop.classList.remove("over"); }));
+drop.addEventListener("drop", ev => setFiles(ev.dataTransfer.files));
+
+function setFiles(list) {
+  files = Array.from(list || []);
+  renderFiles();
+  files.forEach(ensureEstimate);   // 选中后先估算信息，确认再传
+}
+
+// ---------- 上传前文档信息预览：类型 / 大小 / 估算字数 / 页数 ----------
+function fileKey(f) { return `${f.name}:${f.size}:${f.lastModified}`; }
+const extOf = f => { const i = f.name.lastIndexOf("."); return i > 0 ? f.name.slice(i + 1).toUpperCase() : ""; };
+const fmtSize = n => n < 1048576 ? `${(n / 1024).toFixed(1)} KB` : `${(n / 1048576).toFixed(1)} MB`;
+const TEXT_EXT = ["txt", "md", "markdown", "csv", "tsv", "json", "js", "ts", "html", "css", "xml", "yml", "yaml", "log", "srt", "py", "java", "c", "cpp", "h", "go", "rs", "sh", "sql", "ini", "conf"];
+const estCache = new Map();   // 估算结果缓存（key = fileKey），移除文件不丢其它行结果
+
+function renderFiles() {
+  fileListEl.innerHTML = files.map((f, i) =>
+    `<li><span class="fname" title="${escapeHtml(f.name)}">${escapeHtml(f.name)}</span>` +
+    `<span class="rm" data-i="${i}" title="移除">✕</span>` +
+    `<span class="meta">${extOf(f) || "未知类型"} · ${fmtSize(f.size)} · ${escapeHtml(estCache.get(fileKey(f)) || "估算中…")}</span></li>`).join("");
+  updateBtn();
+  updateSummary();
+}
+async function ensureEstimate(f) {
+  const k = fileKey(f);
+  if (estCache.has(k)) return;
+  estCache.set(k, "估算中…");
+  estCache.set(k, await estimateInfo(f));
+  renderFiles();
+}
+// 文本类读取内容统计字数/页数；PDF 按大小粗估；其他类型不猜，显示 —
+async function estimateInfo(f) {
+  const ext = (extOf(f) || "").toLowerCase();
+  if (TEXT_EXT.includes(ext)) {
+    try {
+      const text = await f.text();
+      const cjk = (text.match(/[\u4e00-\u9fff\u3400-\u4dbf]/g) || []).length;
+      const words = (text.match(/[A-Za-z0-9_'\-]+/g) || []).length;
+      const est = cjk + words;
+      if (!est) return "空文件或无可读文本";
+      const pages = Math.max(1, Math.ceil(est / 600));
+      return `约 ${est.toLocaleString()} 字/词 · 约 ${pages} 页`;
+    } catch { return "字数/页数：—"; }
+  }
+  if (ext === "pdf") return `约 ${Math.max(1, Math.round(f.size / 30720))} 页（按大小估）`;
+  return "字数/页数：—";
+}
+function updateSummary() {
+  const el = document.getElementById("fileSummary");
+  if (!files.length) { el.textContent = ""; return; }
+  const bytes = files.reduce((s, f) => s + f.size, 0);
+  el.textContent = `已选 ${files.length} 个文件 · 合计 ${fmtSize(bytes)} · 核对上方信息后点击上传`;
+}
+fileListEl.onclick = e => {
+  const i = e.target.dataset?.i;
+  if (i === undefined) return;
+  files.splice(Number(i), 1);
+  renderFiles();
+};
+
+function updateBtn() {
+  const ready = files.length > 0 && !wsSelect.disabled && wsSelect.value;
+  btn.disabled = !ready;
+  const wsName = wsSelect.selectedOptions?.[0]?.textContent || "工作区";
+  btn.textContent = files.length > 1
+    ? `上传 ${files.length} 个文件到「${wsName}」`
+    : `上传到「${wsName}」`;
+}
+
+// ---------- 上传前重复文档检测（查目标工作区是否已有同名） ----------
+async function getWorkspaceDocs(slug) {
+  const res = await fetch(`${API}/v1/workspace/${encodeURIComponent(slug)}`, { headers: headers() });
+  if (!res.ok) throw httpError(classifyStatus(res.status), res.status, `HTTP ${res.status}`);
+  return (await res.json()).workspace?.[0]?.documents || [];
+}
+function matchWsDoc(d, base) {
+  const fn = String(d.filename || d.docpath || "").toLowerCase();
+  if (fn.includes(base)) return true;
+  try { return String(JSON.parse(d.metadata || "{}").title || "").toLowerCase() === base; }
+  catch { return false; }
+}
+function findDup(docs, f) { return docs.find(d => matchWsDoc(d, f.name.toLowerCase())) || null; }
+
+// 弹窗逐个选择：跳过 / 覆盖 / 仍要传（默认跳过）；返回 Map 风格对象或 null（取消）
+function askDupPlan(dups) {
+  return new Promise(resolve => {
+    const dupModal = document.getElementById("dupModal");
+    document.getElementById("dupList").innerHTML = dups.map(({ file }, idx) =>
+      `<li><span class="dname">${escapeHtml(file.name)}（库中已有同名）</span>` +
+      `<label><input type="radio" name="dup${idx}" value="skip" checked>跳过</label>` +
+      `<label><input type="radio" name="dup${idx}" value="overwrite">覆盖</label>` +
+      `<label><input type="radio" name="dup${idx}" value="keep">仍要传</label></li>`).join("");
+    dupModal.hidden = false;
+    const onGo = () => {
+      const plan = {};
+      dups.forEach(({ file }, idx) => {
+        const el = document.querySelector(`input[name="dup${idx}"]:checked`);
+        plan[fileKey(file)] = el ? el.value : "skip";
+      });
+      finish(plan);
+    };
+    const onCancel = () => finish(null);
+    function finish(plan) {
+      dupModal.hidden = true;
+      document.getElementById("dupGo").removeEventListener("click", onGo);
+      document.getElementById("dupCancel").removeEventListener("click", onCancel);
+      resolve(plan);
+    }
+    document.getElementById("dupGo").addEventListener("click", onGo);
+    document.getElementById("dupCancel").addEventListener("click", onCancel);
+  });
+}
+
+// 覆盖 = 先把旧文档从工作区移除（连同向量化），再重新上传
+async function unembedDoc(slug, docpath) {
+  const res = await fetch(`${API}/v1/workspace/${encodeURIComponent(slug)}/update-embeddings`, {
+    method: "POST",
+    headers: { ...headers(), "Content-Type": "application/json" },
+    body: JSON.stringify({ adds: [], deletes: [docpath] }),
+  });
+  if (!res.ok) throw httpError(classifyStatus(res.status), res.status, `HTTP ${res.status}`);
+}
+
+// ---------- 上传后真实状态轮询：上传完成 → 解析中 → 向量化中 → 完成 ----------
+// 判定依据：documents 库里还没有该文件 = 解析中；库里有但工作区未挂载 = 向量化中；工作区有 = 完成
+const STAGE_TEXT = {
+  parsing: "上传完成，服务端解析中…",
+  embedding: "解析完成，向量化中…",
+  done: "向量化完成 ✓",
+};
+function flattenDocs(node, out = []) {
+  if (!node) return out;
+  if (Array.isArray(node)) { node.forEach(n => flattenDocs(n, out)); return out; }
+  if (node.type === "file" || node.title) out.push(node);
+  if (Array.isArray(node.items)) flattenDocs(node.items, out);
+  return out;
+}
+function matchStoreDoc(d, base) {
+  return String(d.title || "").toLowerCase() === base || String(d.name || "").toLowerCase().includes(base);
+}
+function startStatusPoll(f, slug, tag) {
+  const base = f.name.toLowerCase();
+  let stage = "parsing";
+  let stopped = false;
+  const tick = async () => {
+    if (stopped) return;
+    try {
+      if (stage === "parsing") {
+        // 兼容新 ?folder= 与旧版整树 localFiles 两种响应
+        const res = await fetch(`${API}/v1/documents?folder=custom-documents`, { headers: headers() });
+        if (res.ok) {
+          const data = await res.json();
+          const docs = data.documents || flattenDocs(data.localFiles);
+          if (docs.some(d => matchStoreDoc(d, base))) stage = "embedding";
+        }
+      } else if (stage === "embedding") {
+        const res = await fetch(`${API}/v1/workspace/${encodeURIComponent(slug)}`, { headers: headers() });
+        if (res.ok) {
+          const ws = (await res.json()).workspace?.[0];
+          if ((ws?.documents || []).some(d => matchWsDoc(d, base))) stage = "done";
+        }
+      }
+    } catch { /* 单轮失败忽略，下一轮重试 */ }
+    if (!stopped) setIndeterminate(`${tag} · ${STAGE_TEXT[stage]}`);
+  };
+  tick();
+  const timer = setInterval(() => {
+    tick();
+    if (stage === "done") clearInterval(timer);
+  }, 1500);
+  return () => { stopped = true; clearInterval(timer); };
+}
+
+const openWs = document.getElementById("openWs");
+
+btn.onclick = async () => {
+  if (!files.length) return;
+  if (!getKey()) { result.className = ""; return show("请先填写 API Key", "err"); }
+  const slug = wsSelect.value;
+  if (!slug) { result.className = ""; return show("请选择目标工作区", "err"); }
+  const wsName = wsSelect.selectedOptions[0]?.textContent || slug;
+  const total = files.length;
+
+  btn.disabled = true;
+  result.className = "";
+  openWs.classList.remove("on");
+
+  // 上传前查重：命中则弹窗逐个选择 跳过 / 覆盖 / 仍要传
+  let existing = [];
+  try { existing = await getWorkspaceDocs(slug); }
+  catch { /* 查重失败不阻断，按"仍要传"处理 */ }
+  const dups = files.map(f => ({ file: f, doc: findDup(existing, f) })).filter(x => x.doc);
+  let plan = {};
+  if (dups.length) {
+    const answered = await askDupPlan(dups);
+    if (answered === null) {           // 用户点了取消
+      btn.disabled = false;
+      updateBtn();
+      return show("已取消上传（重复文档检查）", "info");
+    }
+    plan = answered;
+  }
+
+  progressWrap.classList.add("on");
+  const ok = [], fails = [], skipped = [];
+
+  for (let i = 0; i < total; i++) {
+    const f = files[i];
+    const tag = `第 ${i + 1}/${total} 个 · ${f.name}`;
+    const action = plan[fileKey(f)] || "";
+    const dupDoc = findDup(existing, f);
+
+    if (action === "skip") { skipped.push(f.name); continue; }
+
+    let stopPoll = null;
+    try {
+      if (action === "overwrite" && dupDoc) {
+        setIndeterminate(`${tag} · 覆盖：移除旧文档中…`);
+        await unembedDoc(slug, dupDoc.docpath);
+      }
+      const form = new FormData();
+      form.append("file", f);
+      form.append("addToWorkspaces", slug);
+      const data = await upload(form, (pct, loaded, all) => {
+        setProgress(Math.round((i * 100 + pct) / total),   // 整体进度跨文件连续
+          `${tag} · 上传中… ${loaded} / ${all} KB (${pct}%)`);
+        if (pct >= 100 && !stopPoll) {   // 字节传完，服务端开始解析/向量化 → 轮询真实状态
+          setIndeterminate(`${tag} · ${STAGE_TEXT.parsing}`);
+          stopPoll = startStatusPoll(f, slug, tag);
+        }
+      });
+      if (stopPoll) { stopPoll(); stopPoll = null; }
+      if (data.error) {
+        const raw = JSON.stringify(data.error);
+        fails.push(`${f.name}：${raw}`);
+        addRecord(f.name, false);
+        addErrorLog({ file: f.name, workspace: wsName, category: "server", status: 200, raw });
+      } else {
+        ok.push(f.name);
+        addRecord(f.name, true);   // 成功记录只进上传历史，不进错误日志
+      }
+    } catch (e) {
+      if (stopPoll) { stopPoll(); stopPoll = null; }
+      fails.push(`${f.name}：${e.message}`);   // e.message 已是友好提示
+      addRecord(f.name, false);
+      addErrorLog({ file: f.name, workspace: wsName, category: e.kind || "unknown", status: e.status || 0, raw: e.raw || e.message });
+    }
+  }
+
+  progressWrap.classList.remove("on");
+  btn.disabled = false;
+  updateBtn();
+
+  // 成功提示跟着下拉所选工作区变化
+  const head = (!fails.length && !skipped.length)
+    ? `✅ 全部上传成功（${ok.length}/${total}），已向量化到工作区「${wsName}」`
+    : `完成：成功 ${ok.length} / ${total} 个` +
+      (skipped.length ? `，跳过 ${skipped.length} 个` : "") +
+      (fails.length ? `，失败 ${fails.length} 个` : "") +
+      ` → 工作区「${wsName}」`;
+  const body = [
+    fails.length ? `\n\n失败明细：\n${fails.map(x => "· " + x).join("\n")}` : "",
+    skipped.length ? `\n\n跳过（重复未上传）：\n${skipped.map(x => "· " + x).join("\n")}` : "",
+  ].join("");
+  show(head + body, fails.length ? (ok.length ? "info" : "err") : (skipped.length ? "info" : "ok"));
+
+  // 一键打开目标工作区（路由 /workspace/:slug，已向官方源码确认）
+  if (ok.length) {
+    openWs.href = appUrl(`/workspace/${encodeURIComponent(slug)}`);
+    openWs.textContent = `在 AnythingLLM 中打开「${wsName}」 →`;
+    openWs.classList.add("on");
+  }
+};
+
+const progressWrap = document.getElementById("progressWrap");
+const bar = document.getElementById("bar");
+const progressText = document.getElementById("progressText");
+
+function setProgress(pct, text) {
+  bar.classList.remove("indet");
+  bar.style.width = pct + "%";
+  progressText.textContent = text;
+}
+function setIndeterminate(text) {
+  bar.style.width = "";
+  bar.classList.add("indet");
+  progressText.textContent = text;
+}
+// 用 XHR 以获取真实上传进度（fetch 无上传进度事件）；按状态码/网络/超时分类报错
+function upload(form, onProgress) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", `${API}/v1/document/upload`);
+    xhr.timeout = 300000;   // 5 分钟超时，防止大文件/向量化卡死无反馈
+    xhr.setRequestHeader("Authorization", `Bearer ${getKey()}`);
+    xhr.upload.onprogress = e => {
+      if (!e.lengthComputable) return;
+      const pct = Math.round((e.loaded / e.total) * 100);
+      onProgress(pct, Math.round(e.loaded / 1024), Math.round(e.total / 1024));
+    };
+    xhr.onload = () => {
+      const raw = xhr.responseText.slice(0, 300);
+      if (xhr.status >= 400) return reject(httpError(classifyStatus(xhr.status), xhr.status, raw));
+      try { resolve(JSON.parse(xhr.responseText)); }
+      catch (err) { reject(httpError("server", xhr.status, `响应解析失败: ${xhr.responseText.slice(0, 200)}`)); }
+    };
+    xhr.onerror = () => reject(httpError("network", 0, "网络错误"));
+    xhr.ontimeout = () => reject(httpError("timeout", 0, "请求超时"));
+    xhr.send(form);
+  });
+}
+
+function show(text, cls) {
+  result.textContent = text;
+  result.className = cls;
+}
+
+// 上传记录（localStorage 持久化，最多 50 条）
+const HISTORY_KEY = "anythingllm_upload_history";
+function loadHistory() {
+  try { return JSON.parse(localStorage.getItem(HISTORY_KEY)) || []; }
+  catch { return []; }
+}
+function addRecord(name, ok) {
+  const list = loadHistory();
+  list.unshift({ name, ok, time: Date.now() });
+  localStorage.setItem(HISTORY_KEY, JSON.stringify(list.slice(0, 50)));
+  renderHistory();
+}
+function renderHistory() {
+  const list = loadHistory();
+  historyList.innerHTML = list.length
+    ? list.map(r => `<li><span class="dot ${r.ok ? "ok" : "err"}"></span>` +
+        `<span class="name" title="${escapeHtml(r.name)}">${r.ok ? "✅" : "❌"} ${escapeHtml(r.name)}</span>` +
+        `<span class="time">${new Date(r.time).toLocaleString("zh-CN", { hour12: false })}</span></li>`).join("")
+    : `<li style="border-style:dashed;color:#94a3b8">暂无记录</li>`;
+}
+document.getElementById("clearHistory").onclick = () => {
+  localStorage.removeItem(HISTORY_KEY);
+  renderHistory();
+};
+renderHistory();
+
+// 错误日志（功能 5-B）：失败详情留底，成功记录不进错误日志；localStorage 新键，滚动保留 50 条
+const ERROR_LOG_KEY = "anythingllm_error_log";
+const CATEGORY = { network: "连接失败", auth: "Key无效", format: "格式不支持", timeout: "请求超时", server: "服务端错误", unknown: "其他错误" };
+const logList = document.getElementById("logList");
+
+function loadErrorLog() {
+  try { return JSON.parse(localStorage.getItem(ERROR_LOG_KEY)) || []; }
+  catch { return []; }
+}
+function addErrorLog({ file, workspace, category, status, raw }) {
+  const list = loadErrorLog();
+  list.unshift({ time: Date.now(), file, workspace, category: category || "unknown", status: status || 0, raw: raw || "" });
+  localStorage.setItem(ERROR_LOG_KEY, JSON.stringify(list.slice(0, 50)));   // 超出滚动丢弃
+  logList.hidden = false;   // 有新错误时自动展开，方便立刻看到
+  document.getElementById("toggleLog").textContent = "收起日志";
+  renderErrorLog();
+}
+function renderErrorLog() {
+  const list = loadErrorLog();
+  logList.innerHTML = list.length
+    ? list.map(r => `<li><div class="l1">` +
+        `<span class="cat">${CATEGORY[r.category] || CATEGORY.unknown}</span>` +
+        `<span class="fname" title="${escapeHtml(r.file)} → ${escapeHtml(r.workspace)}">${escapeHtml(r.file)} → ${escapeHtml(r.workspace)}</span>` +
+        `<span class="time">${new Date(r.time).toLocaleString("zh-CN", { hour12: false })}</span></div>` +
+        `<div class="l2">${r.status ? `HTTP ${r.status} · ` : ""}${escapeHtml(r.raw)}</div></li>`).join("")
+    : `<li class="empty">暂无错误记录</li>`;
+}
+document.getElementById("toggleLog").onclick = () => {
+  logList.hidden = !logList.hidden;
+  document.getElementById("toggleLog").textContent = logList.hidden ? "查看日志" : "收起日志";
+};
+document.getElementById("clearLog").onclick = () => {
+  localStorage.removeItem(ERROR_LOG_KEY);
+  renderErrorLog();
+};
+renderErrorLog();
+
+// 状态判断：加载时按有无已保存的 Key 决定显示哪一块，无需跳转
+if (currentKey) enterMain();
+else keyInput.focus();
+</script>
+</body>
+</html>
