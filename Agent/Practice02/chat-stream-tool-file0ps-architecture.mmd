@@ -1,0 +1,118 @@
+flowchart TD
+    subgraph CFG["配置层 Configuration"]
+        ENV["环境变量<br/>OPENAI_API_KEY / OPENAI_BASE_URL / CHAT_MODEL"]
+        INI["config.ini<br/>[llm] base_url / api_key / model_name"]
+        DEF["内置默认值 DEFAULT_CONFIG<br/>DeepSeek 官方接口"]
+        LOADCFG["load_config()<br/>优先级：环境变量 &gt; config.ini &gt; 默认值"]
+        ENV --> LOADCFG
+        INI --> LOADCFG
+        DEF --> LOADCFG
+        LOADCFG --> GLOBALS["模块级常量<br/>API_KEY / BASE_URL / MODEL / CHAT_URL<br/>DEFAULT_DIAGRAM_DIR / MAX_TOOL_ROUNDS = 8"]
+    end
+
+    subgraph DEF2["提示词与工具定义"]
+        SYS["SYSTEM_PROMPT<br/>画架构图助手，要求调用工具落盘 .mmd"]
+        TYPES["DIAGRAM_TYPES<br/>flowchart / graph / sequenceDiagram / classDiagram<br/>stateDiagram-v2 / erDiagram / gantt / pie / mindmap / timeline"]
+        SCHEMA["4 个 Function Call JSON Schema<br/>CREATE / UPDATE / LIST / READ_DIAGRAM_TOOL"]
+        TOOLS["TOOLS 工具清单<br/>随每次请求发送给模型"]
+        SYS --> TOOLS
+        TYPES --> SCHEMA
+        SCHEMA --> TOOLS
+    end
+
+    subgraph MAIN["主循环 main()"]
+        BANNER["打印横幅<br/>模型 / 接口 / 保存目录"]
+        INITH["初始化 history<br/>system 消息"]
+        INPUT["input('你&gt; ') 读取用户输入"]
+        CMD{"命令判断"}
+        EXIT["exit / quit / q → 退出"]
+        CLEAR["clear → 重置 history"]
+        CALLQ["handle_one_question(history, question)"]
+        ERRH["异常处理<br/>RequestException / RuntimeError"]
+        BANNER --> INITH --> INPUT --> CMD
+        CMD -->|退出| EXIT
+        CMD -->|clear| CLEAR --> INPUT
+        CMD -->|普通问题| CALLQ --> ERRH --> INPUT
+    end
+
+    subgraph QA["单次问答 handle_one_question()"]
+        APPENDU["追加 user 消息到 history"]
+        ROUND{"轮次 &lt; MAX_TOOL_ROUNDS<br/>且存在 tool_calls ?"}
+        STREAM["stream_chat(history)<br/>流式请求 + 逐字打印"]
+        BUILDMSG["build_assistant_message()<br/>还原 assistant 消息（含 tool_calls）"]
+        EXEC["逐个执行工具调用<br/>json.loads(arguments) → execute_tool()"]
+        TOOLMSG["追加 role=tool 结果消息回传模型"]
+        LIMIT["达到上限 → 打印警告并停止"]
+        APPENDU --> ROUND
+        ROUND -->|是| STREAM --> BUILDMSG --> ROUND
+        ROUND -->|有工具调用| EXEC --> TOOLMSG --> ROUND
+        ROUND -->|否 / 达上限| LIMIT
+    end
+
+    subgraph NET["流式请求 stream_chat()"]
+        PAYLOAD["POST {BASE_URL}/chat/completions<br/>payload: model / messages / tools / stream=true"]
+        SSE["requests.post(stream=True)<br/>resp.encoding = utf-8 强制解码"]
+        PARSE["iter_lines 解析 SSE data 行<br/>跳过空行 / 非 data: / [DONE]"]
+        TEXTDELTA["delta.content 文本增量<br/>content_parts 收集 + 实时 print"]
+        TCDELTA["delta.tool_calls 增量<br/>按 index 拼接 id / name / arguments"]
+        FINISH["记录 finish_reason"]
+        SUMMARY["返回 {content, tool_calls, finish_reason}"]
+        PAYLOAD --> SSE --> PARSE
+        PARSE --> TEXTDELTA
+        PARSE --> TCDELTA
+        PARSE --> FINISH
+        TEXTDELTA --> SUMMARY
+        TCDELTA --> SUMMARY
+        FINISH --> SUMMARY
+    end
+
+    subgraph DISPATCH["工具分发 execute_tool()"]
+        DIST{"按 name 分发"}
+        VALERR["捕获 ValueError / OSError<br/>转换为 '错误：...' 字符串"]
+        UNKNOWN["未知工具提示"]
+        DIST --> VALERR
+        DIST --> UNKNOWN
+    end
+
+    subgraph TOOLSIM["Mermaid .mmd 文件操作工具"]
+        CREATET["create_mermaid_diagram()<br/>createMermaidDiagram"]
+        UPDATET["update_mermaid_diagram()<br/>updateMermaidDiagram"]
+        LISTT["list_mermaid_diagrams()<br/>listMermaidDiagrams"]
+        READT["read_mermaid_diagram()<br/>readMermaidDiagram"]
+    end
+
+    subgraph HELP["公共辅助函数"]
+        ENSURE["_ensure_mmd()<br/>补全 .mmd 扩展名"]
+        PATH["_diagram_path()<br/>绝对/相对路径 → 默认 diagrams/"]
+        VALID["_validate_mermaid()<br/>跳过 %% 注释，校验首行图类型关键字<br/>核对 diagram_type 一致性"]
+    end
+
+    subgraph FS["磁盘 Disk"]
+        DIR["diagrams/ 目录<br/>不存在时自动创建"]
+        MMD["*.mmd 纯文本文件<br/>UTF-8 无 BOM，LF 换行"]
+    end
+
+    GLOBALS --> PAYLOAD
+    TOOLS --> PAYLOAD
+    MAIN --> QA
+    QA --> NET
+    QA --> DISPATCH
+    NET -.流式输出.-> USER["终端用户"]
+    USER -.输入问题.-> INPUT
+    DISPATCH -->|createMermaidDiagram| CREATET
+    DISPATCH -->|updateMermaidDiagram| UPDATET
+    DISPATCH -->|listMermaidDiagrams| LISTT
+    DISPATCH -->|readMermaidDiagram| READT
+    CREATET --> VALID
+    CREATET --> PATH
+    UPDATET --> PATH
+    LISTT --> PATH
+    READT --> PATH
+    PATH --> ENSURE
+    VALID --> MMD
+    CREATET --> MMD
+    UPDATET --> MMD
+    LISTT --> DIR
+    READT --> MMD
+    DIR --> MMD
+    VALERR --> TOOLMSG
